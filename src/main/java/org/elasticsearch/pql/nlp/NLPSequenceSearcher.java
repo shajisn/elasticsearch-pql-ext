@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
@@ -44,15 +45,36 @@ public class NLPSequenceSearcher {
 			if (sm != null) {
 				sm.checkPermission(new SpecialPermission());
 			}
-			    
-//			File fModel = new File("/data/seq_vec.model");
-			File fModel = AccessController.doPrivileged(
-	            (PrivilegedExceptionAction<File>)
-	                () -> new File("E:\\Program Files\\Elastic Search\\6.3.2\\plugins\\elasticsearch-pql\\data\\seq_vec.model")
-	        );
+
+			File fModel = new File(
+					"E:\\Program Files\\Elastic Search\\6.3.2\\plugins\\elasticsearch-pql\\data\\seq_vec.model");
+
+			AccessController.doPrivileged(new PrivilegedExceptionAction<Void>() {
+				@Override
+				public Void run() throws Exception {
+					try {
+						inputStream = new FileInputStream(fModel);
+						log.info("reading sequence vectors from the NLP Model ...");
+						SequenceElementFactory<VocabWord> f1 = new VocabWordFactory();
+						vectors = WordVectorSerializer.readSequenceVectors(f1, inputStream);
+						if (vectors == null) {
+							log.error("NLPSequenceSearcher reading sequence vector from model failed.");
+							throw new Exception("NLPSequenceSearcher reading sequence vector from model failed.");
+						} else {
+							log.info("Model Loading Successful");
+							System.out.println("Model Loading Successful");
+						}
+					} catch (Exception e) {
+						throw e;
+					}
+					return null;
+				}
+			});
 			
-			inputStream = new FileInputStream(fModel);
-	    } catch (PrivilegedActionException e) {
+
+		} catch (PrivilegedActionException e) {
+	    	log.error("Reading model file failed with exception = " + e.getMessage());
+	    	log.error("Error stack", e);
 	        // e.getException() should be an instance of IOException
 	        // as only checked exceptions will be wrapped in a
 	        // PrivilegedActionException.
@@ -60,19 +82,6 @@ public class NLPSequenceSearcher {
 	    }
 		
 		log.info("NLP Model is loaded into memory ...");
-		System.out.println("NLP Model is loaded into memory ...");
-		
-		SequenceElementFactory<VocabWord> f1 = new VocabWordFactory();
-		vectors = WordVectorSerializer.readSequenceVectors(f1, inputStream);
-		if (vectors == null) {
-			log.error("NLPSequenceSearcher reading sequence vector from model failed.");
-			System.out.println("NLPSequenceSearcher reading sequence vector from model failed.");
-			throw new Exception("NLPSequenceSearcher reading sequence vector from model failed.");
-		}
-		else {
-			log.info("Model Loading Successful");
-			System.out.println("Model Loading Successful");
-		}
 	}
 
 	@Override
@@ -107,7 +116,6 @@ public class NLPSequenceSearcher {
 
 		try {
 			log.info("NLPSequenceSearcher finding sequence vector for word [" + searchWord + "].");
-			System.out.println("NLPSequenceSearcher finding sequence vector for word [" + searchWord + "].");
 			if(vectors == null) {
 				log.error("Loading NLP model is UnSuccesfull !!!");
 				return null;
@@ -131,10 +139,8 @@ public class NLPSequenceSearcher {
 				log.info("Look up Time is : " + (etime - stime) + " MilliSeconds");
 				if (lst != null) {
 					log.info("10 Words closest to '" + searchWord + "': " + Arrays.toString(lst.toArray()));
-					System.out.println("10 Words closest to '" + searchWord + "': " + Arrays.toString(lst.toArray()));
 				} else {
 					log.info("Word Not matched in Corpus !!!!");
-					System.out.println("Word Not matched in Corpus !!!!");
 				}
 				return lst;
 			} else {
