@@ -19,6 +19,7 @@ import org.deeplearning4j.models.sequencevectors.SequenceVectors;
 import org.deeplearning4j.models.sequencevectors.interfaces.SequenceElementFactory;
 import org.deeplearning4j.models.sequencevectors.serialization.VocabWordFactory;
 import org.deeplearning4j.models.word2vec.VocabWord;
+import org.elasticsearch.SpecialPermission;
 
 public class NLPSequenceSearcher {
 
@@ -39,11 +40,18 @@ public class NLPSequenceSearcher {
 //		inputStream = classloader.getResourceAsStream("nlp.model");
 		
 		try {
-			File fModel = new File("/data/seq_vec.model");
-			inputStream = AccessController.doPrivileged(
-	            (PrivilegedExceptionAction<InputStream>)
-	                () -> new FileInputStream(fModel)
+			SecurityManager sm = System.getSecurityManager();
+			if (sm != null) {
+				sm.checkPermission(new SpecialPermission());
+			}
+			    
+//			File fModel = new File("/data/seq_vec.model");
+			File fModel = AccessController.doPrivileged(
+	            (PrivilegedExceptionAction<File>)
+	                () -> new File("E:\\Program Files\\Elastic Search\\6.3.2\\plugins\\elasticsearch-pql\\data\\seq_vec.model")
 	        );
+			
+			inputStream = new FileInputStream(fModel);
 	    } catch (PrivilegedActionException e) {
 	        // e.getException() should be an instance of IOException
 	        // as only checked exceptions will be wrapped in a

@@ -19,7 +19,9 @@
 
 // NOTE: when modifying this file, look at restrictions in TikaImpl too
 grant {
-  //File needs accessDeclaredMembers on Java 10
-  // permission java.lang.RuntimePermission "accessDeclaredMembers";
- 	permission java.io.FilePermission "<<ALL FILES>>", "read, write, delete, execute";
+	permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+  	// needed by xmlbeans, as part of POI for MS xml docs
+  	permission java.lang.RuntimePermission "getClassLoader";
+  	permission java.lang.RuntimePermission "accessDeclaredMembers";
+  	permission java.io.FilePermission "<<ALL FILES>>", "read,write";
 };

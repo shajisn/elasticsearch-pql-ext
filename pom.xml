@@ -83,20 +83,52 @@
 				</exclusion>
 				<!-- https://mvnrepository.com/artifact/net.java.dev.jna/jna -->
 				<exclusion>
-				    <groupId>net.java.dev.jna</groupId>
-				    <artifactId>jna</artifactId>
+					<groupId>net.java.dev.jna</groupId>
+					<artifactId>jna</artifactId>
 				</exclusion>
 				<exclusion>
-				    <groupId>joda-time</groupId>
-    				<artifactId>joda-time</artifactId>
+					<groupId>joda-time</groupId>
+					<artifactId>joda-time</artifactId>
+				</exclusion>
+				<!-- https://mvnrepository.com/artifact/org.datavec/datavec-data-image -->
+				<exclusion>
+					<groupId>org.datavec</groupId>
+					<artifactId>datavec-data-image</artifactId>
+				</exclusion>
+				<!-- https://mvnrepository.com/artifact/org.bytedeco.javacpp-presets/hdf5 -->
+				<exclusion>
+					<groupId>org.bytedeco.javacpp-presets</groupId>
+					<artifactId>hdf5</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
-		
+
 		<dependency>
 			<groupId>org.nd4j</groupId>
 			<artifactId>nd4j-native-platform</artifactId>
 			<version>1.0.0-beta2</version>
+			<exclusions>
+				<!-- https://mvnrepository.com/artifact/org.bytedeco.javacpp-presets/mkl-platform -->
+				<exclusion>
+					<groupId>org.bytedeco.javacpp-presets</groupId>
+					<artifactId>mkl-platform</artifactId>
+				</exclusion>
+				<!-- https://mvnrepository.com/artifact/org.bytedeco.javacpp-presets/mkl-dnn-platform -->
+				<exclusion>
+					<groupId>org.bytedeco.javacpp-presets</groupId>
+					<artifactId>mkl-dnn-platform</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.bytedeco.javacpp-presets</groupId>
+					<artifactId>openblas-platform</artifactId>
+				</exclusion>
+				<!-- https://mvnrepository.com/artifact/com.thoughtworks.deeplearning/nd4j-android-arm-native -->
+				<exclusion>
+					<groupId>org.nd4j</groupId>
+					<artifactId>nd4j-native</artifactId>
+				</exclusion>
+
+			</exclusions>
 		</dependency>
 
 		<dependency>
