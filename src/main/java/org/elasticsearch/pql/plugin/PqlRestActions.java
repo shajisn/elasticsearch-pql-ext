@@ -113,7 +113,7 @@ public class PqlRestActions extends BaseRestHandler {
 					NettyClient nettyClient = null;
 					try {
 						nettyClient  = new NettyClient();
-						ChannelFuture writeFuture = nettyClient.lookup_nlp_data(searchKey);
+						ChannelFuture writeFuture = nettyClient.lookup_nlp_data(searchKey.replaceAll("[^a-zA-Z0-9]", ""));
 						if (writeFuture != null) {
 							writeFuture.sync();
 						}
