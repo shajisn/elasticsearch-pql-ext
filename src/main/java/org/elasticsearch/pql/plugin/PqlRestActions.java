@@ -6,8 +6,8 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -22,7 +22,8 @@ import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.pql.grammar.PqlQuery;
-import org.elasticsearch.pql.nlp.NLPSequenceSearcher;
+import org.elasticsearch.pql.netty.NettyClient;
+import org.elasticsearch.pql.utils.ESUtils;
 import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.BytesRestResponse;
 import org.elasticsearch.rest.RestController;
@@ -30,6 +31,8 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.RestBuilderListener;
+
+import io.netty.channel.ChannelFuture;
 
 public class PqlRestActions extends BaseRestHandler {
 
@@ -40,20 +43,12 @@ public class PqlRestActions extends BaseRestHandler {
 	
 	private static ExecutorService threadpool = Executors.newFixedThreadPool(MAX_THREAD);
 	
-	private NLPSequenceSearcher nlpSearchInstance = null;
-
 	protected PqlRestActions(Settings settings, RestController controller) {
 		super(settings);
 		controller.registerHandler(GET, "_pql", this);
 		controller.registerHandler(POST, "_pql", this);
 		controller.registerHandler(GET, "_pql/{action}", this);
 		controller.registerHandler(POST, "_pql/{action}", this);
-		
-		try {
-			nlpSearchInstance = NLPSequenceSearcher.getInstance();
-		} catch (Exception e) {
-			log.error("Loading NLP search module failed with error : " + e.getMessage());
-		}
 	}
 
 	@Override
@@ -88,15 +83,10 @@ public class PqlRestActions extends BaseRestHandler {
 
 	private RestChannelConsumer createNLPSearchResponse(RestRequest restRequest, NodeClient client) {
 		
-		if(nlpSearchInstance == null) {
-			log.warn("NLP search module is not loaded. Searching with regular PQL commands.");
-			return createSearchResponse(restRequest, client);
-		}
-		
 		ArrayList<Future<ParellelSearchExecutor>> futureObjects = new ArrayList<Future<ParellelSearchExecutor>>();
 		
 		String query = restRequest.param("query");
-		logger.debug("[pql] request for query {} ", query);
+		log.debug("[pql] request for query {} ", query);
 		String []queryParts = query.split("\\|"); 
 		
 		Optional<String> optSearch = Arrays.stream(queryParts)
@@ -113,10 +103,43 @@ public class PqlRestActions extends BaseRestHandler {
 				String condition = optSearchQuery.get().trim();
 				String searchKey = condition.substring(condition.indexOf("=") + 1);
 				String searchField = condition.substring(0, condition.indexOf("="));
-				logger.debug(searchField + " = " + searchKey);
+				log.debug(searchField + " = " + searchKey);
 				
 				try {
-					Collection<String> words = nlpSearchInstance.findNearWords(searchKey);
+					
+					//Collection<String> words = nlpSearchInstance.findNearWords(searchKey);
+					String sWords = "";//new NettyClient(query).lookup_nlp_data();
+					
+					NettyClient nettyClient = null;
+					try {
+						nettyClient  = new NettyClient();
+						ChannelFuture writeFuture = nettyClient.lookup_nlp_data(searchKey);
+						if (writeFuture != null) {
+							writeFuture.sync();
+						}
+						sWords = nettyClient.getInboundChannel().wait_for_response();
+						nettyClient.ShutDown();
+					} catch (Exception e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+					
+					List<String> words = new ArrayList<String>(Arrays.asList(sWords.split(",")));
+					if(words == null || words.size() == 0) {
+						log.warn("NLP search module didn't return any words!!!! Searching with regular PQL commands.");
+						String sQuery = ESUtils.stripFilterCommandsFromQuery(query);
+						PqlQuery pqlQuery = new PqlQuery();
+						SearchRequestBuilder searchRequestBuilder = pqlQuery.buildRequest(sQuery, client);
+						log.debug("[pql] request for query {} : request : {}", query, searchRequestBuilder.toString());
+						return channel -> searchRequestBuilder.execute(new RestBuilderListener<SearchResponse>(channel) {
+							@Override
+							public RestResponse buildResponse(SearchResponse searchResponse, XContentBuilder xContentBuilder)
+									throws Exception {
+								return new BytesRestResponse(RestStatus.OK, searchResponse.toXContent(xContentBuilder, restRequest));
+							}
+						});
+					}
 					words.forEach(word->{
 						log.info("Submitting search request for word " + word);
 						ParellelSearchExecutor obj = new ParellelSearchExecutor(restRequest, client, word, searchField);
@@ -139,8 +162,14 @@ public class PqlRestActions extends BaseRestHandler {
 					ParellelSearchExecutor obj = future.get();
 					String word = obj.getSearchWord();
 					if (future.isDone()) {
-						log.debug("Search is completed yet word [" + word + "]... Hits = " + obj.getSearchResponse().getHits());
-						
+						SearchResponse searchResponse = obj.getSearchResponse();
+						long searchHits = searchResponse.getHits().totalHits;
+						log.debug("Search is completed yet word [" + word + "]... Hits = " + searchHits);
+						if(searchHits > 10) {
+							searchResponses.add(searchResponse);
+						} else {
+							System.out.println("Serachhits for word " + word + " is lessthan 10. Ignoring this results ....");
+						}
 						iterator.remove();
 					} else
 						log.debug("Search is not completed yet for table [" + word + "]...");
@@ -162,6 +191,7 @@ public class PqlRestActions extends BaseRestHandler {
 		}
 		
 		//All searches using keywords completed. Join the results and send.
+		
 		
 		return null;
 	}
