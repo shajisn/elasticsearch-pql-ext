@@ -6,6 +6,7 @@ import static org.elasticsearch.rest.RestRequest.Method.POST;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -188,10 +189,42 @@ public class PqlRestActions extends BaseRestHandler {
 									public RestResponse buildResponse(MultiSearchResponse searchResponse,
 											XContentBuilder xContentBuilder) throws Exception {
 										
-										List<String> lstFilters = Arrays.stream(queryParts)
-												.filter(x -> x.indexOf("source ") != -1 )
-												.collect(Collectors.toList());
-										
+										Optional<String> lstFilters = Arrays.stream(queryParts)
+												.filter(x -> x.indexOf("filters") != -1)
+												.findFirst();
+										if (lstFilters.isPresent()) {// Check whether optional has element "filters"
+											log.info("Applying filters ...");
+											String filterString = lstFilters.get().trim();
+											String[] filterParts = filterString.split(" ");
+											List<String> filters = Arrays.stream(filterParts)
+													.filter(x -> x.indexOf("=") != -1)
+													.collect(Collectors.toList());
+											if (filters != null && filters.size() > 0) {
+												String condition = filters.get(0);
+												log.info("Applying filter condition " + condition);
+												String filterKey = condition.substring(condition.indexOf("=") + 1);
+												String filterField = condition.substring(0, condition.indexOf("="));
+												log.debug(filterField + " = " + filterKey);
+												if(filterField.equalsIgnoreCase("minCount")) {
+													try {
+														int minCount = Integer.parseInt(filterKey);
+														log.info("Minimum count = " + minCount);
+														for(Iterator<MultiSearchResponse.Item> iterator = searchResponse.iterator(); iterator.hasNext(); ) {
+															MultiSearchResponse.Item item = iterator.next();
+															SearchResponse response = item.getResponse();
+															long hits = response.getHits().getTotalHits();
+															if(hits < minCount) {
+																log.info("removing item with hits " + response.getHits().getTotalHits());
+																iterator.remove();
+															}
+														}
+
+													} catch(Exception e) {
+														
+													}
+												}
+											}
+										}
 										
 										return new BytesRestResponse(RestStatus.OK,
 												searchResponse.toXContent(xContentBuilder, restRequest));
