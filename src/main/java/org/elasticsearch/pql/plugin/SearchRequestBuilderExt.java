@@ -6,7 +6,6 @@ import java.util.List;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequestBuilder;
 import org.elasticsearch.client.ElasticsearchClient;
-import org.elasticsearch.index.query.QueryBuilder;
 
 public class SearchRequestBuilderExt extends SearchRequestBuilder {
 

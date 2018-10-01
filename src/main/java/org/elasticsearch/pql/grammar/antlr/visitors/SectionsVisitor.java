@@ -27,14 +27,13 @@ import org.elasticsearch.pql.grammar.antlr.visitors.bucket.BucketPipelineAggrega
 import org.elasticsearch.pql.grammar.antlr.visitors.eval.EvalStatementVisitor.EvalScript;
 import org.elasticsearch.pql.grammar.antlr.visitors.sort.SortStatementVisitor.Sort;
 import org.elasticsearch.pql.grammar.antlr.visitors.stats.StatsStatementVisitor.StatsAggregation;
-import org.elasticsearch.pql.plugin.SearchRequestBuilderExt;
 import org.elasticsearch.search.aggregations.PipelineAggregationBuilder;
 
 public class SectionsVisitor extends PqlBaseVisitor<SearchRequestBuilder> {
 
     private Client client;
     private QueryBuilder query;
-    private SearchRequestBuilderExt searchRequest;
+    private SearchRequestBuilder searchRequest;
     private List<StatsAggregation> statsAggregations = new ArrayList<>();
     private List<BucketPipelineAggregation> bucketPipelineAggregations = new ArrayList<>();
     private Map<String, String> references = new HashMap<>();
@@ -65,36 +64,14 @@ public class SectionsVisitor extends PqlBaseVisitor<SearchRequestBuilder> {
             }
         }
         searchRequest.setFetchSource(true);
-        searchRequest.setFilters(lstFilters);
         return searchRequest;
     }
 
-    public SearchRequestBuilderExt visitSectionsExt(SectionsContext ctx) {
-        createEsQuery(ctx);
-        if (query != null) {
-            searchRequest.setQuery(query);
-        } else {
-            searchRequest.setQuery(matchAllQuery());
-        }
-        for (StatsAggregation aggregation : statsAggregations) {
-            searchRequest.addAggregation(aggregation.getRootAggregation());
-        }
-        for (BucketPipelineAggregation bucketPipelineAggregation : bucketPipelineAggregations) {
-            for (PipelineAggregationBuilder pipelineAggregationBuilder : bucketPipelineAggregation
-                    .getPipelineAggregations()) {
-                for (StatsAggregation aggregation : statsAggregations) {
-                    aggregation.getLeafAggregation().subAggregation(pipelineAggregationBuilder);
-                }
-            }
-        }
-        searchRequest.setFetchSource(true);
-        searchRequest.setFilters(lstFilters);
-        return searchRequest;
-    }
 
-    public void createEsQuery(SectionsContext ctx) {
-        this.searchRequest = (SearchRequestBuilderExt) sourceStatement(client, ctx.sourceStatement());
-        for (SearchStatementContext dataFilterStatement : ctx.searchStatement()) {
+    private void createEsQuery(SectionsContext ctx) {
+    	this.searchRequest = sourceStatement(client, ctx.sourceStatement());
+
+    	for (SearchStatementContext dataFilterStatement : ctx.searchStatement()) {
             if (this.query == null) {
                 this.query = searchStatementToQuery(dataFilterStatement);
             } else {
@@ -144,13 +121,9 @@ public class SectionsVisitor extends PqlBaseVisitor<SearchRequestBuilder> {
 			}
 		}
     }
+    
 
     public static SearchRequestBuilder sections(Client client, SectionsContext ctx) {
         return new SectionsVisitor(client).visitSections(ctx);
     }
-    
-    public static SearchRequestBuilderExt sectionsExt(Client client, SectionsContext ctx) {
-        return new SectionsVisitor(client).visitSectionsExt(ctx);
-    }
-
 }

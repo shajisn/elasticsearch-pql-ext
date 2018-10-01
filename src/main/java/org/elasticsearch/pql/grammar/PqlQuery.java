@@ -41,18 +41,6 @@ public class PqlQuery {
         }
     }
     
-    public SearchRequestBuilderExt buildRequestExt(String query, NodeClient client) {
-        /* ParseTreeWalker walker = new ParseTreeWalker();
-         walker.walk(new PlqlBaseListener(), tree);*/
-         try {
-             return SectionsVisitor.sectionsExt(client, buildAntlrParser(query).sections());
-         } catch (PqlException e) {
-             throw e;
-         } catch (Exception e) {
-             throw new PqlException(e.getMessage(), e);
-         }
-     }
-
     private PqlParser buildAntlrParser(String query) {
         ANTLRInputStream antlrInputStream = new ANTLRInputStream(query);
         PqlLexer lexer = new PqlLexer(antlrInputStream);

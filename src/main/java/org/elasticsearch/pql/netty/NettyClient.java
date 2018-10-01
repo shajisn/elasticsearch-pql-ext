@@ -80,7 +80,7 @@ public class NettyClient {
 		//Create a request and write the data
 		RequestData req = new RequestData(query);
         ChannelFuture writeFuture = ch.write(req);
-        writeFuture.addListener(querySender);
+//        writeFuture.addListener(querySender);
         ch.flush();
         return writeFuture;
 	}
@@ -91,7 +91,7 @@ public class NettyClient {
 			if (!future.isSuccess()) {
 				log.info("Operation succesfully completed ...");
 			} else {
-				log.warn("Operation failed ..." + future.cause().getLocalizedMessage());
+				log.warn("Operation failed ...");
 				future.cause().printStackTrace();
 				future.channel().close();
 			}
@@ -99,7 +99,12 @@ public class NettyClient {
 	};
 	
 	public static void main(String []args) {
-		
+//		String sWords = "";
+//		List<String> words = new ArrayList<String>(Arrays.asList(sWords.split(",")));
+//		if(words == null || words.size() == 0) {
+//			System.out.println(" Empty message");
+//		}
+//		
 		ChannelFuture writeFuture;
 		String query = "trump";
 		String sWords = "";
@@ -129,6 +134,7 @@ public class NettyClient {
 			if (writeFuture != null) {
 				writeFuture.sync();
 			}
+			sWords = thisInst.inboundChannel.wait_for_response();
 			List<String> words = new ArrayList<String>(Arrays.asList(sWords.split(",")));
 			System.out.println("Words = " + words);
 			thisInst.ShutDown();

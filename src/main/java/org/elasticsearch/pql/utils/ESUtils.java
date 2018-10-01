@@ -15,11 +15,11 @@ public class ESUtils {
 		String[] queryParts = query.split("\\|");
 
 		List<String> rawQueryFiltered = Arrays.stream(queryParts)
-				.filter(x -> x.indexOf("filters") != -1)
+				.filter(x -> x.indexOf("filters ") == -1)
 				.collect(Collectors.toList());
 
 		String sQuery = rawQueryFiltered.stream()
-				.collect(Collectors.joining(" | "));
+				.collect(Collectors.joining("|"));
 		return sQuery;
 
 	}
