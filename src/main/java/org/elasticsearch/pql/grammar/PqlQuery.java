@@ -1,7 +1,11 @@
 package org.elasticsearch.pql.grammar;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.antlr.v4.runtime.ANTLRInputStream;
@@ -15,7 +19,6 @@ import org.elasticsearch.pql.grammar.antlr.PqlLexer;
 import org.elasticsearch.pql.grammar.antlr.PqlParser;
 import org.elasticsearch.pql.grammar.antlr.visitors.SectionsVisitor;
 import org.elasticsearch.pql.grammar.antlr.visitors.search.SearchStatementVisitors;
-import org.elasticsearch.pql.plugin.SearchRequestBuilderExt;
 
 public class PqlQuery {
 
@@ -54,7 +57,7 @@ public class PqlQuery {
     
     public static void main(String[] args) throws Exception {
     	System.out.println("Testing PqlQuery ....");
-    	String obj = "source 'nlp_corpus' |  search  description='chance*' | filters mincount=10 | filters author=5";
+    	String obj = "source 'nlp_corpus' |  search  description='donald trump' and title='cohen' | filters mincount=10 | filters author=5";
     	
 //    	String []queryParts = obj.split("\\|"); 
 //		
@@ -76,6 +79,48 @@ public class PqlQuery {
 //		}
     	
     	String []queryParts = obj.split("\\|");  
+    	
+    	Optional<String> optSearch = Arrays.stream(queryParts)
+				.filter(x -> x.indexOf("search") != -1)
+				.findFirst();
+		if (optSearch.isPresent()) {// Check whether optional has element "search"
+			String searchString = optSearch.get().trim();
+			System.out.println("Search string = "+ searchString);
+			//Split the string using space when not surrounded by single or double quotes
+//			String[] searchParts = searchString.split("\"([\"]*)\"|'([']*)'|[\\s]+");
+			String[] searchParts = searchString.split("[^\\s\"']+|\"([^\"]*)\"|'([^']*)'");
+			
+			List<String> matchList = new ArrayList<String>();
+//			Pattern regex = Pattern.compile("[^\\s\"']+|\"([^\"]*)\"|'([^']*)'");
+			Pattern regex = Pattern.compile("(\\S*\\'[^\\']+\\')|\\S+");
+			Matcher regexMatcher = regex.matcher(searchString);
+			while (regexMatcher.find())
+				matchList.add(regexMatcher.group(0));
+//			while (regexMatcher.find()) {
+//			    if (regexMatcher.group(1) != null) {
+//			        // Add double-quoted string without the quotes
+//			        matchList.add(regexMatcher.group(1));
+//			    } else if (regexMatcher.group(2) != null) {
+//			        // Add single-quoted string without the quotes
+//			        matchList.add(regexMatcher.group(2));
+//			    } else {
+//			        // Add unquoted word
+//			        matchList.add(regexMatcher.group());
+//			    }
+//			} 
+			
+			System.out.println("search fields = "+ searchParts.toString());
+			Optional<String> optSearchQuery = Arrays.stream(searchParts)
+					.filter(x -> x.indexOf("=") != -1)
+					.findFirst();
+			// Check if search part exists in input query string
+			if (optSearchQuery.isPresent()) {
+				String condition = optSearchQuery.get().trim();
+				String searchKey = condition.substring(condition.indexOf("=") + 1);
+				String searchField = condition.substring(0, condition.indexOf("="));
+				System.out.println("Requested search field = [" + searchField + "] search content = [" + searchKey + "]");
+			}
+		}
 		
 		List rawQueryFiltered = Arrays.stream(queryParts)
 			  .filter(x -> x.indexOf("search") == -1)

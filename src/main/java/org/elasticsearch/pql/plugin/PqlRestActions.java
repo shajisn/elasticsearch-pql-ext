@@ -9,8 +9,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -47,9 +45,9 @@ public class PqlRestActions extends BaseRestHandler {
 	private static final Logger log = LogManager.getLogger(PqlRestActions.class);
 	public static final String NAME = "pql";
 
-	private static final int MAX_THREAD = 50;
+//	private static final int MAX_THREAD = 50;
 
-	private static ExecutorService threadpool = Executors.newFixedThreadPool(MAX_THREAD);
+//	private static ExecutorService threadpool = Executors.newFixedThreadPool(MAX_THREAD);
 
 	protected PqlRestActions(Settings settings, RestController controller) {
 		super(settings);
@@ -103,8 +101,18 @@ public class PqlRestActions extends BaseRestHandler {
 				.findFirst();
 		if (optSearch.isPresent()) {// Check whether optional has element "search"
 			String searchString = optSearch.get().trim();
-			String[] searchParts = searchString.split(" ");
-			Optional<String> optSearchQuery = Arrays.stream(searchParts)
+			log.info("Search string = {}", searchString);
+			
+			List<String> searchParts = new ArrayList<String>();
+			Pattern regex = Pattern.compile("(\\S*\\'[^\\']+\\')|\\S+");
+			Matcher regexMatcher = regex.matcher(searchString);
+			while (regexMatcher.find())
+				searchParts.add(regexMatcher.group(0));
+			
+			//Split the string using space when not surrounded by single or double quotes
+//			String[] searchParts = searchString.split("[^\\s\"']+|\"[^\"]*\"|'[^']*'");
+			log.info("search fields = {}", searchParts.toString());
+			Optional<String> optSearchQuery = searchParts.stream()
 					.filter(x -> x.indexOf("=") != -1)
 					.findFirst();
 			// Check if search part exists in input query string
@@ -112,16 +120,17 @@ public class PqlRestActions extends BaseRestHandler {
 				String condition = optSearchQuery.get().trim();
 				String searchKey = condition.substring(condition.indexOf("=") + 1);
 				String searchField = condition.substring(0, condition.indexOf("="));
-				log.debug(searchField + " = " + searchKey);
-
+				log.info("Requested search field = [" + searchField + "] search content = [" + searchKey + "]");
 				try {
-
 					String sWords = "";
 					NettyClient nettyClient = null;
 					try {
 						nettyClient = new NettyClient();
+						//Replace all non alpha numeric ???
+//						ChannelFuture writeFuture = nettyClient
+//								.lookup_nlp_data(searchKey.replaceAll("[^a-zA-Z0-9]", ""));
 						ChannelFuture writeFuture = nettyClient
-								.lookup_nlp_data(searchKey.replaceAll("[^a-zA-Z0-9]", ""));
+								.lookup_nlp_data(searchKey);
 						if (writeFuture != null) {
 							writeFuture.sync();
 						}
@@ -142,7 +151,7 @@ public class PqlRestActions extends BaseRestHandler {
 						log.info("Orig. Query =" + query + "Stripped query = " + sQuery);
 						PqlQuery pqlQuery = new PqlQuery();
 						SearchRequestBuilder searchRequestBuilder = pqlQuery.buildRequest(sQuery, client);
-						log.info("[pql] request for query {} : request : {}", query, searchRequestBuilder.toString());
+						log.info("[pql] Submitting ES request query {}", searchRequestBuilder.toString());
 						return channel -> searchRequestBuilder
 								.execute(new RestBuilderListener<SearchResponse>(channel) {
 									@Override
@@ -164,7 +173,7 @@ public class PqlRestActions extends BaseRestHandler {
 									.filter(x -> x.indexOf("source ") != -1 ) //Add Index query
 									.collect(Collectors.toList());
 							//Add our new search value returned from NLP service
-							rawQueryFiltered.add("search " + searchField + "='" + word.trim() + "'");
+							rawQueryFiltered.add("search " + searchField + "='" + word.trim().replaceAll("_", " ") + "'");
 							
 							List<String> restOfTokens = Arrays.stream(queryParts)
 									.filter(x -> (
@@ -180,18 +189,16 @@ public class PqlRestActions extends BaseRestHandler {
 
 							PqlQuery pqlQuery = new PqlQuery();
 							SearchRequestBuilder searchRequestBuilder = pqlQuery.buildRequest(sQuery, client);
-							log.info("[pql-nlp] request for query {} : request : {}", query,
-									searchRequestBuilder.toString());
-
+							log.info("[pql] Submitting ES request query {}", searchRequestBuilder.toString());
 							searchRequests.add(searchRequestBuilder);
 
 						});
-						log.info("Executing multi search requet...");
+						log.info("Executing multi search request ...");
 						MultiSearchRequestBuilder multiBuilder = client.prepareMultiSearch();
 						searchRequests.forEach(request -> {
 							multiBuilder.add(request);
 						});
-						log.info("Executing Multi serach...");
+						log.info("Processing Multi search response...");
 
 						return channel -> multiBuilder
 								.execute(new RestToXContentListener<MultiSearchResponse>(channel) {
@@ -230,7 +237,6 @@ public class PqlRestActions extends BaseRestHandler {
 													}
 												}
 											}
-											
 										
 											for (Iterator<MultiSearchResponse.Item> iterator = searchResponse
 													.iterator(); iterator.hasNext();) {

@@ -25,7 +25,7 @@ public class ResponseDataDecoder extends ReplayingDecoder<ResponseData> {
 		byte[] bytes;
 		int length = in.readInt();
 		if(length > 25000) {
-			log.info("Cannot process Response message with buffer length = " + length);
+			log.debug("Cannot process Response message with buffer length = " + length);
 			return;
 		}
 		log.info("Response buffer length = " + length);
