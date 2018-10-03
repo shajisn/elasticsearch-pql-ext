@@ -17,7 +17,7 @@ public class ResponseDataDecoder extends ReplayingDecoder<ResponseData> {
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
 		
-    	log.info("ResponseDataDecoder decoding ... ");
+//    	log.debug("ResponseDataDecoder decoding ... ");
     	
 		if (!in.isReadable())
 	        return;
@@ -35,7 +35,6 @@ public class ResponseDataDecoder extends ReplayingDecoder<ResponseData> {
 		    bytes = new byte[length];
 		    in.getBytes(in.readerIndex(), bytes);
 		}
-		
 		
 		String response = new String(bytes);
 		log.info("ResponseDataDecoder decoded message = " + response);

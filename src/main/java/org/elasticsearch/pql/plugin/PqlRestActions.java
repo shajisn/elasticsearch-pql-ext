@@ -36,6 +36,8 @@ import org.elasticsearch.rest.action.RestBuilderListener;
 import org.elasticsearch.rest.action.RestToXContentListener;
 import org.elasticsearch.search.aggregations.Aggregation;
 import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.range.InternalDateRange;
+import org.elasticsearch.search.aggregations.bucket.range.InternalDateRange.Bucket;
 import org.elasticsearch.search.aggregations.metrics.cardinality.Cardinality;
 
 import io.netty.channel.ChannelFuture;
@@ -263,7 +265,7 @@ public class PqlRestActions extends BaseRestHandler {
 																	log.info("Adding item with hits " + hits);
 																	shouldAdd = true; 
 																} else {
-																	log.info("Filtering item with : hits{} count{} " + hits, count);
+																	log.info("Filtering item with : hits{} count{} ", hits, count);
 																	shouldAdd = false;
 																	break;
 																}
@@ -272,7 +274,7 @@ public class PqlRestActions extends BaseRestHandler {
 																	log.info("Adding item with hits " + hits);
 																	shouldAdd = true;
 																} else {
-																	log.info("Filtering item with : hits{} count{} " + hits, count);
+																	log.info("Filtering item with : hits{} count{} ", hits, count);
 																	shouldAdd = false;
 																	break;
 																}
@@ -281,7 +283,7 @@ public class PqlRestActions extends BaseRestHandler {
 																	log.info("Adding item with hits " + hits);
 																	shouldAdd = true;
 																} else {
-																	log.info("Filtering item with : hits{} count{} " + hits, count);
+																	log.info("Filtering item with : hits{} count{} ", hits, count);
 																	shouldAdd = false;
 																	break;
 																}
@@ -302,32 +304,38 @@ public class PqlRestActions extends BaseRestHandler {
 																log.info("Check cardinals aggregation element not present. Skip filter");
 																continue;
 															}
-															long cardinalValue = ((Cardinality) (agg)).getValue();
-															log.info("Applying cardinal count filter : Cardinals{} count{} " + cardinalValue, minCardinal);
+															long countValue = 0;
+															if(agg instanceof Cardinality) {
+																countValue = ((Cardinality) (agg)).getValue();
+															} else {
+																List<Bucket> lstBuckets= ((InternalDateRange) (agg)).getBuckets();
+																countValue = lstBuckets.get(0).getDocCount();
+															}
+															log.info("Applying count filter : Actual{} limit{} ", countValue, minCardinal);
 															if(condition.getOperatorPart().equalsIgnoreCase(">") ) {
-																if (cardinalValue > minCardinal) {
-																	log.info("Adding item with cardinalValue " + cardinalValue);
+																if (countValue > minCardinal) {
+																	log.info("Adding item with cardinalValue " + countValue);
 																	shouldAdd = true;
 																} else {
-																	log.info("Filtering item with : Cardinals{} cardinalValue{} " + cardinalValue, minCardinal);
+																	log.info("Filtering item with : Actual{} limit{} ", countValue, minCardinal);
 																	shouldAdd = false;
 																	break;
 																}
 															} else if(condition.getOperatorPart().equalsIgnoreCase("<") ) {
-																if (cardinalValue < minCardinal) {
-																	log.info("Adding item with cardinalValue " + cardinalValue);
+																if (countValue < minCardinal) {
+																	log.info("Adding item with Actual Value " + countValue);
 																	shouldAdd = true;
 																} else {
-																	log.info("Filtering item with : Cardinals{} cardinalValue{} " + cardinalValue, minCardinal);
+																	log.info("Filtering item with : Actual{} limit{} ", countValue, minCardinal);
 																	shouldAdd = false;
 																	break;
 																}
 															} else if(condition.getOperatorPart().equalsIgnoreCase("=") ) {
-																if (cardinalValue == minCardinal) {
-																	log.info("Adding item with cardinalValue " + cardinalValue);
+																if (countValue == minCardinal) {
+																	log.info("Adding item with Actual Value " + countValue);
 																	shouldAdd = true;
 																} else {
-																	log.info("Filtering item with : Cardinals{} cardinalValue{} " + cardinalValue, minCardinal);
+																	log.info("Filtering item with : Actual{} limit{} ", countValue, minCardinal);
 																	shouldAdd = false;
 																	break;
 																}

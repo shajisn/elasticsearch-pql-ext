@@ -7,11 +7,13 @@ import static org.elasticsearch.pql.grammar.antlr.visitors.identifier.Identifier
 import static org.elasticsearch.pql.grammar.antlr.visitors.literal.LiteralVisitors.literalToObject;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.elasticsearch.pql.grammar.PqlException;
 import org.elasticsearch.pql.grammar.antlr.PqlBaseVisitor;
@@ -160,6 +162,16 @@ public class StatsStatementVisitor extends PqlBaseVisitor<List<StatsAggregation>
                 result = AggregationBuilders
                         .cardinality(ctx.columnName.getText())
                         .field(ctx.fieldName.getText());
+                break;
+            case "count_by_date_range":
+            	Date now = new Date();
+            	double timestampNow = now.getTime() / 1000;
+            	double timestampThisWeek = timestampNow - ((24 * 60 * 60) * 3);
+                result = AggregationBuilders
+                		.dateRange(ctx.columnName.getText())
+                		.field(ctx.fieldName.getText())
+                		.format("epoch_second")
+                        .addRange("Last 3 Days", String.valueOf(timestampThisWeek), String.valueOf(timestampNow));
                 break;
             default:
                 throw new PqlException(ctx.methodName, "Could not find method " + ctx.methodName.getText());
